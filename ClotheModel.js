@@ -16,15 +16,13 @@ import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import { BsLaptop } from "react-icons/bs";
 import { GoDesktopDownload } from "react-icons/go";
+const panel = new GUI({ width: 310 });
 
 import { useSnapshot } from "valtio";
 import snapState from "./snapState";
 
 import FileDropzone from "./FileDropzone";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
-
-const panel = new GUI({ width: 310 });
-
 import { GrClose } from "react-icons/gr";
 
 const baseUrl = "http://localhost:3001/";
@@ -50,37 +48,35 @@ const ClotheModel = (props) => {
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const texture1 = new THREE.Texture();
-  const texture2 = new THREE.Texture();
+  var texture2 = new THREE.Texture();
 
   const snap = useSnapshot(snapState);
   // const { progress } = useProgress();
+  const onChange = (e) => {
+    if(e.target.name === "offsetX") texture2.offset.x = e.target.value / 10;
+    if(e.target.name === "offsetY") texture2.offset.y = e.target.value / 10;
+    if(e.target.name === "repeatX") texture2.repeat.x = e.target.value / 10;
+    if(e.target.name === "repeatY") texture2.repeat.y = e.target.value / 10;
+  }
 
+  // Update current state with changes from controls
   useEffect(() => {
-    console.log("snap", snapState);
-  });
+    // const targetMaterial = panel.addFolder("Target Material");
+    // targetMaterial.add(texture2.offset, "x", -4.0, 8.0, 0.01).name("offset x");
+    // targetMaterial.add(texture2.offset, "y", -4.0, 8.0, 0.01).name("offset y");
+    // targetMaterial.add(texture2.repeat, "x", 0.0, 8.0, 0.01).name("repeat x");
+    // targetMaterial.add(texture2.repeat, "y", 0.0, 8.0, 0.01).name("repeat y");
+    const tempNodes = [];
+    nodes.forEach((element) => {
+      if (element.material.name === snap.current) {
+        tempNodes.push(element);
+      }
+    });
+    renderMeshes(tempNodes);
+  }, [texture2]);
 
   useEffect(() => {
     loadModel(defaultFileName);
-    const backgroundMaterial = panel.addFolder("Background Material");
-    backgroundMaterial
-      .add(texture1.offset, "x", -4.0, 4.0, 0.01)
-      .name("offset x");
-    backgroundMaterial
-      .add(texture1.offset, "y", -4.0, 4.0, 0.01)
-      .name("offset y");
-    backgroundMaterial
-      .add(texture1.repeat, "x", 0.0, 8.0, 0.01)
-      .name("repeat x");
-    backgroundMaterial
-      .add(texture1.repeat, "y", 0.0, 8.0, 0.01)
-      .name("repeat y");
-
-    const targetMaterial = panel.addFolder("Target Material");
-    targetMaterial.add(texture2.offset, "x", -4.0, 8.0, 0.01).name("offset x");
-    targetMaterial.add(texture2.offset, "y", -4.0, 8.0, 0.01).name("offset y");
-    targetMaterial.add(texture2.repeat, "x", 0.0, 8.0, 0.01).name("repeat x");
-    targetMaterial.add(texture2.repeat, "y", 0.0, 8.0, 0.01).name("repeat y");
   }, []);
 
   // useEffect(() => {
@@ -148,7 +144,6 @@ const ClotheModel = (props) => {
             g.addGroup(0, Infinity, 1);
           }
         }
-        console.log(geoms);
       });
     } catch (err) {
       console.log({ err });
@@ -461,10 +456,10 @@ const ClotheModel = (props) => {
     );
   };
 
-  const renderMeshes = () => {
+  const renderMeshes = (tempNodes) => {
     // const nodeKeys = Object.keys(nodes) || [];
 
-    nodes.forEach((meshNode, index) => {
+    tempNodes.forEach((meshNode, index) => {
       // const meshNode = nodes[key];
       if (meshNode.material) {
         /* const boundingBox = new THREE.Box3();
@@ -477,12 +472,11 @@ const ClotheModel = (props) => {
         // meshNode.geometry.computeBoundingSphere();
         // meshNode.geometry.computeTangents();
         // meshNode.geometry.computeVertexNormals();
-        console.log("before: ", meshNode.material.name)
         if (snap.BackgroundTexture[meshNode.material.name]) {
-          meshNode.material.color = new THREE.Color("0xffffff");
+          meshNode.material.color = new THREE.Color("#ffffff");
           const backgroundImage = new Image();
           backgroundImage.src = snap.BackgroundTexture[meshNode.material.name];
-
+          const texture1 = new THREE.Texture();
           backgroundImage.onload = function () {
             texture1.needsUpdate = true;
           };
@@ -495,16 +489,15 @@ const ClotheModel = (props) => {
           texture1.encoding = THREE.sRGBEncoding;
           texture1.flipY = false;
           meshNode.material.map = texture1;
-          console.log("text", texture1);
           if (snap.TargetTexture[meshNode.material.name]) {
             let name = meshNode.material.name;
             const targetImage = new Image();
             targetImage.src = snap.TargetTexture[meshNode.material.name];
+
             targetImage.onload = function () {
               texture2.needsUpdate = true;
             };
-            
-            // texture2.scale.y = -1;
+            // texture2 = new THREE.TextureLoader().load( snap.BackgroundTexture[meshNode.material.name] )
             texture2.image = targetImage;
             texture2.wrapS = texture2.wrapT = THREE.ClampToEdgeWrapping;
             texture2.offset.set(-0.1, 5.95);
@@ -512,8 +505,9 @@ const ClotheModel = (props) => {
             texture2.anisotropy = 12;
             texture2.encoding = THREE.sRGBEncoding;
             texture2.flipY = false;
-
-            if(Array.isArray(meshNode.material)) {
+            console.log("clothemodal", targetImage.src);
+            console.log("clothemodal_texture2", texture2.image.src);
+            if (Array.isArray(meshNode.material)) {
               meshNode.material = meshNode.material[0];
             }
 
@@ -522,7 +516,6 @@ const ClotheModel = (props) => {
               meshNode.material.clone(),
             ];
             meshNode.material.name = name;
-            console.log("after: ", meshNode.material);
             meshNode.material[0].map = texture1;
             meshNode.material[0].transparent = false;
             meshNode.material[1].transparent = true;
@@ -565,6 +558,45 @@ const ClotheModel = (props) => {
       {renderActionButtons()}
       {/* {renderSpinner()} */}
       {renderMaterialName()}
+      <div
+        style={{
+          position: "absolute",
+          top: "50px",
+          left: "10px",
+          background: "grey",
+          borderRadius: "5px",
+          padding: "10px",
+          zIndex: "3"
+        }}
+      >
+        <table>
+          <tbody>
+          <tr>
+            <td>offsetX</td>
+            <td>
+              <input type="range" name="offsetX" min="-40" max="60" onChange={(e) => onChange(e)} />
+            </td>
+          </tr>
+          <tr>
+            <td>offsetY</td>
+            <td>
+              <input type="range"name="offsetY" min="-40" max="60"  onChange={(e) => onChange(e)} />
+            </td>
+          </tr>
+          <tr>
+            <td>repeatX</td>
+            <td>
+              <input type="range" name="repeatX" min="0" max="100" onChange={(e) => onChange(e)} />           </td>
+          </tr>
+          <tr>
+            <td>repeatY</td>
+            <td>
+              <input type="range" name="repeatY" min="0" max="100"  onChange={(e) => onChange(e)} />
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
       {/* <div ref={refContainer} className="canvas-container" style={{ height: "100%", width: "100%" }}></div> */}
       <Canvas
         id="canvas-content"
@@ -599,9 +631,8 @@ const ClotheModel = (props) => {
                 : (snapState.current = e.object.material.name)
             )}
           >
-            {console.log(snapState.current)}
             <primitive object={glbScene}></primitive>
-            {renderMeshes()}
+            {/* {renderMeshes()} */}
 
             {/* {meshes} */}
           </group>
